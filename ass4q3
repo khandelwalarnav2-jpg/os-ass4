@@ -1,0 +1,140 @@
+#include <iostream>
+
+using namespace std;
+
+// Function to validate and parse an IPv4 string (X.X.X.X) into 4 octets
+bool parseAndValidateIP(const char* ipStr, int octets[4]) {
+    int octetIndex = 0;
+    int currentVal = 0;
+    bool hasDigits = false;
+
+    for (int i = 0; ipStr[i] != '\0'; i++) {
+        char ch = ipStr[i];
+        if (ch >= '0' && ch <= '9') {
+            hasDigits = true;
+            currentVal = currentVal * 10 + (ch - '0');
+            if (currentVal > 255) return false; // Octet exceeds 255
+        } else if (ch == '.') {
+            if (!hasDigits || octetIndex >= 3) return false; // Invalid placement
+            octets[octetIndex++] = currentVal;
+            currentVal = 0;
+            hasDigits = false;
+        } else {
+            return false; // Invalid non-digit character
+        }
+    }
+
+    if (!hasDigits || octetIndex != 3) return false;
+    octets[octetIndex] = currentVal;
+    return true;
+}
+
+// Function to determine IPv4 class
+char getIPClass(int firstOctet) {
+    if (firstOctet >= 1 && firstOctet <= 126) return 'A';
+    if (firstOctet >= 128 && firstOctet <= 191) return 'B';
+    if (firstOctet >= 192 && firstOctet <= 223) return 'C';
+    if (firstOctet >= 224 && firstOctet <= 239) return 'D';
+    if (firstOctet >= 240 && firstOctet <= 254) return 'E';
+    return 'U'; // Unknown / Reserved
+}
+
+// Function to get default subnet mask octets based on class
+void getDefaultMask(char ipClass, int mask[4]) {
+    mask[0] = 255;
+    mask[1] = (ipClass == 'B' || ipClass == 'C') ? 255 : 0;
+    mask[2] = (ipClass == 'C') ? 255 : 0;
+    mask[3] = 0;
+}
+
+// Function to calculate Network ID: IP AND MASK
+void calculateSubnetID(const int ip[4], const int mask[4], int netID[4]) {
+    for (int i = 0; i < 4; i++) {
+        netID[i] = ip[i] & mask[i];
+    }
+}
+
+// Function to check if two network IDs match
+bool areInSameSubnet(const int net1[4], const int net2[4]) {
+    for (int i = 0; i < 4; i++) {
+        if (net1[i] != net2[i]) return false;
+    }
+    return true;
+}
+
+void printIP(const int octets[4]) {
+    cout << octets[0] << "." << octets[1] << "." << octets[2] << "." << octets[3];
+}
+
+int main() {
+    char ip1Str[50], ip2Str[50], maskStr[50];
+    int ip1[4], ip2[4], mask[4];
+    int net1[4], net2[4];
+
+    cout << "=======================================================\n";
+    cout << " IP ALLOCATION & SUBNET IDENTIFICATION SIMULATOR (Q3)\n";
+    cout << "=======================================================\n";
+
+    // Input Host 1 IP
+    cout << "Enter Host 1 IP Address (e.g., 192.168.1.15): ";
+    cin >> ip1Str;
+    if (!parseAndValidateIP(ip1Str, ip1)) {
+        cout << "[ERROR] Invalid IPv4 Address for Host 1!\n";
+        return 1;
+    }
+
+    // Input Host 2 IP
+    cout << "Enter Host 2 IP Address (e.g., 192.168.1.45): ";
+    cin >> ip2Str;
+    if (!parseAndValidateIP(ip2Str, ip2)) {
+        cout << "[ERROR] Invalid IPv4 Address for Host 2!\n";
+        return 1;
+    }
+
+    // Input Subnet Mask
+    cout << "Enter Subnet Mask (or type 'default'): ";
+    cin >> maskStr;
+
+    char class1 = getIPClass(ip1[0]);
+
+    if (maskStr[0] == 'd' || maskStr[0] == 'D') {
+        if (class1 == 'D' || class1 == 'E' || class1 == 'U') {
+            cout << "[ERROR] Default subnet mask not applicable for Class " << class1 << "!\n";
+            return 1;
+        }
+        getDefaultMask(class1, mask);
+    } else {
+        if (!parseAndValidateIP(maskStr, mask)) {
+            cout << "[ERROR] Invalid Subnet Mask entered!\n";
+            return 1;
+        }
+    }
+
+    // Display validation and classification
+    cout << "\n------------------------------------\n";
+    cout << "        VALIDATION & DETAILS        \n";
+    cout << "------------------------------------\n";
+    cout << "Host 1 IP   : "; printIP(ip1); cout << " [Valid Class " << class1 << "]\n";
+    cout << "Host 2 IP   : "; printIP(ip2); cout << " [Valid Class " << getIPClass(ip2[0]) << "]\n";
+    cout << "Subnet Mask : "; printIP(mask); cout << "\n";
+
+    // Perform Bitwise AND operation to get Subnet IDs
+    calculateSubnetID(ip1, mask, net1);
+    calculateSubnetID(ip2, mask, net2);
+
+    cout << "Host 1 Subnet: "; printIP(net1); cout << "\n";
+    cout << "Host 2 Subnet: "; printIP(net2); cout << "\n";
+    cout << "------------------------------------\n";
+
+    // Verdict
+    if (areInSameSubnet(net1, net2)) {
+        cout << "RESULT: Host 1 and Host 2 BELONG to the SAME subnet.\n";
+        cout << "Communication: Direct local communication possible without a router.\n";
+    } else {
+        cout << "RESULT: Host 1 and Host 2 belong to DIFFERENT subnets.\n";
+        cout << "Communication: Requires a gateway/router to communicate.\n";
+    }
+    cout << "=======================================================\n";
+
+    return 0;
+}

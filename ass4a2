@@ -1,0 +1,228 @@
+#include <iostream>
+
+using namespace std;
+
+const int MAX_REQ = 100;
+
+// Utility function to calculate absolute difference without extra headers
+int getAbs(int a, int b) {
+    return (a > b) ? (a - b) : (b - a);
+}
+
+// Utility function to sort an array in ascending order
+void sortArray(int arr[], int n) {
+    for (int i = 0; i < n - 1; i++) {
+        for (int j = 0; j < n - i - 1; j++) {
+            if (arr[j] > arr[j + 1]) {
+                int temp = arr[j];
+                arr[j] = arr[j + 1];
+                arr[j + 1] = temp;
+            }
+        }
+    }
+}
+
+// 1. First-Come, First-Served (FCFS)
+int runFCFS(int req[], int n, int head) {
+    int cur = head;
+    int total_movement = 0;
+
+    cout << "\n------------------------------------\n";
+    cout << "1. First-Come, First-Served (FCFS)\n";
+    cout << "------------------------------------\n";
+    cout << "Seek Sequence: " << cur;
+
+    for (int i = 0; i < n; i++) {
+        total_movement += getAbs(req[i], cur);
+        cur = req[i];
+        cout << " -> " << cur;
+    }
+
+    cout << "\nTotal Head Movement: " << total_movement << " cylinders\n";
+    return total_movement;
+}
+
+// 2. Shortest Seek Time First (SSTF)
+int runSSTF(int req[], int n, int head) {
+    bool visited[MAX_REQ] = {false};
+    int cur = head;
+    int total_movement = 0;
+
+    cout << "\n------------------------------------\n";
+    cout << "2. Shortest Seek Time First (SSTF)\n";
+    cout << "------------------------------------\n";
+    cout << "Seek Sequence: " << cur;
+
+    for (int count = 0; count < n; count++) {
+        int min_diff = 1000000;
+        int next_idx = -1;
+
+        for (int i = 0; i < n; i++) {
+            if (!visited[i]) {
+                int diff = getAbs(req[i], cur);
+                if (diff < min_diff) {
+                    min_diff = diff;
+                    next_idx = i;
+                }
+            }
+        }
+
+        visited[next_idx] = true;
+        total_movement += min_diff;
+        cur = req[next_idx];
+        cout << " -> " << cur;
+    }
+
+    cout << "\nTotal Head Movement: " << total_movement << " cylinders\n";
+    return total_movement;
+}
+
+// 3. SCAN Algorithm (Elevator moving towards higher cylinders)
+int runSCAN(int req[], int n, int head, int disk_size) {
+    int arr[MAX_REQ + 2];
+    int size = 0;
+
+    for (int i = 0; i < n; i++) {
+        arr[size++] = req[i];
+    }
+    arr[size++] = disk_size - 1; // Highest cylinder boundary
+
+    sortArray(arr, size);
+
+    int idx = 0;
+    while (idx < size && arr[idx] < head) {
+        idx++;
+    }
+
+    int cur = head;
+    int total_movement = 0;
+
+    cout << "\n------------------------------------\n";
+    cout << "3. SCAN Algorithm (Direction: Towards Upper Boundary)\n";
+    cout << "------------------------------------\n";
+    cout << "Seek Sequence: " << cur;
+
+    // Sweep upward to the highest cylinder
+    for (int i = idx; i < size; i++) {
+        total_movement += getAbs(arr[i], cur);
+        cur = arr[i];
+        cout << " -> " << cur;
+    }
+
+    // Reverse and sweep downward through remaining requests
+    for (int i = idx - 1; i >= 0; i--) {
+        total_movement += getAbs(arr[i], cur);
+        cur = arr[i];
+        cout << " -> " << cur;
+    }
+
+    cout << "\nTotal Head Movement: " << total_movement << " cylinders\n";
+    return total_movement;
+}
+
+// 4. Circular SCAN (C-SCAN Algorithm moving towards higher cylinders)
+int runCSCAN(int req[], int n, int head, int disk_size) {
+    int arr[MAX_REQ + 3];
+    int size = 0;
+
+    for (int i = 0; i < n; i++) {
+        arr[size++] = req[i];
+    }
+    arr[size++] = disk_size - 1; // Upper cylinder boundary
+    arr[size++] = 0;              // Lower cylinder boundary
+
+    sortArray(arr, size);
+
+    int idx = 0;
+    while (idx < size && arr[idx] < head) {
+        idx++;
+    }
+
+    int cur = head;
+    int total_movement = 0;
+
+    cout << "\n------------------------------------\n";
+    cout << "4. C-SCAN Algorithm (Direction: Circular High)\n";
+    cout << "------------------------------------\n";
+    cout << "Seek Sequence: " << cur;
+
+    // Move to the upper boundary
+    for (int i = idx; i < size; i++) {
+        total_movement += getAbs(arr[i], cur);
+        cur = arr[i];
+        cout << " -> " << cur;
+    }
+
+    // Jump to cylinder 0 (circular return sweep)
+    total_movement += getAbs(0, cur);
+    cur = 0;
+    cout << " -> " << cur;
+
+    // Service lower requests up to original head start
+    for (int i = 1; i < idx; i++) {
+        total_movement += getAbs(arr[i], cur);
+        cur = arr[i];
+        cout << " -> " << cur;
+    }
+
+    cout << "\nTotal Head Movement: " << total_movement << " cylinders\n";
+    return total_movement;
+}
+
+int main() {
+    int req[MAX_REQ];
+    int n, initial_head, disk_size;
+
+    cout << "========================================\n";
+    cout << "    DISK SCHEDULING ALGORITHMS (Q2)     \n";
+    cout << "========================================\n";
+
+    cout << "Enter total number of disk cylinders: ";
+    if (!(cin >> disk_size)) return 0;
+
+    cout << "Enter initial read/write head position: ";
+    cin >> initial_head;
+
+    cout << "Enter number of I/O requests: ";
+    cin >> n;
+
+    cout << "Enter " << n << " request cylinder numbers:\n";
+    for (int i = 0; i < n; i++) {
+        cin >> req[i];
+    }
+
+    int fcfs_thm = runFCFS(req, n, initial_head);
+    int sstf_thm = runSSTF(req, n, initial_head);
+    int scan_thm = runSCAN(req, n, initial_head, disk_size);
+    int cscan_thm = runCSCAN(req, n, initial_head, disk_size);
+
+    cout << "\n========================================\n";
+    cout << "        PERFORMANCE COMPARISON          \n";
+    cout << "========================================\n";
+    cout << "FCFS   Total Head Movement : " << fcfs_thm << " cylinders\n";
+    cout << "SSTF   Total Head Movement : " << sstf_thm << " cylinders\n";
+    cout << "SCAN   Total Head Movement : " << scan_thm << " cylinders\n";
+    cout << "C-SCAN Total Head Movement : " << cscan_thm << " cylinders\n";
+    cout << "----------------------------------------\n";
+
+    int min_thm = fcfs_thm;
+    const char* best_algo = "FCFS";
+
+    if (sstf_thm < min_thm) {
+        min_thm = sstf_thm;
+        best_algo = "SSTF";
+    }
+    if (scan_thm < min_thm) {
+        min_thm = scan_thm;
+        best_algo = "SCAN";
+    }
+    if (cscan_thm < min_thm) {
+        min_thm = cscan_thm;
+        best_algo = "C-SCAN";
+    }
+
+    cout << "Most Efficient Algorithm   : " << best_algo << " (" << min_thm << " cylinders)\n";
+    cout << "========================================\n";
+
+    return 0;
+}
